@@ -1,8 +1,8 @@
 package ru.covariance.codeforcesapi.controller;
 
 import java.util.List;
-import ru.covariance.codeforcesapi.CodeforcesApi;
-import ru.covariance.codeforcesapi.CodeforcesApiException;
+import ru.covariance.codeforcesapi.apisource.CodeforcesApi;
+import ru.covariance.codeforcesapi.apisource.CodeforcesApiException;
 import ru.covariance.codeforcesapi.constants.CodeForcesConstants;
 import ru.covariance.codeforcesapi.entities.Hack;
 

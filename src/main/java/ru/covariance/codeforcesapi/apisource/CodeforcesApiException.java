@@ -1,4 +1,4 @@
-package ru.covariance.codeforcesapi;
+package ru.covariance.codeforcesapi.apisource;
 
 public class CodeforcesApiException extends Exception {
 

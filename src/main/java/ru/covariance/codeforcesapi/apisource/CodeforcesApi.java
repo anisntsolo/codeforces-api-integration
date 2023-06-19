@@ -1,4 +1,4 @@
-package ru.covariance.codeforcesapi;
+package ru.covariance.codeforcesapi.apisource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;

@@ -9,8 +9,15 @@ import ru.covariance.codeforcesapi.entities.Hack;
 public class ApiSanityCheck {
 
   public static void main(String[] args) throws CodeforcesApiException {
-    CodeforcesApi apiReader = new CodeforcesApi(CodeForcesConstants.API_KEY, CodeForcesConstants.API_SECRET, "en");
+    CodeforcesApi apiReader = new CodeforcesApi(CodeForcesConstants.API_KEY, CodeForcesConstants.API_SECRET);
+//    apiReader.
     List<Hack> list = apiReader.contestHacks(566);
-    System.out.println(list.toArray());
+    System.out.println(list.toString());
+  }
+
+  private static void customCall() throws CodeforcesApiException {
+    CodeforcesApi apiReader = new CodeforcesApi(CodeForcesConstants.API_KEY,
+        CodeForcesConstants.API_SECRET, "en");
+
   }
 }

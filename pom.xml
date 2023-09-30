@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>2.5.0</version>
+    <version>3.1.0</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
   <groupId>ru.codeforces.codeforcesapi</groupId>
@@ -14,7 +14,7 @@
   <name>codeforces-api</name>
   <description>Code forces apis integration project</description>
   <properties>
-    <java.version>11</java.version>
+    <java.version>17</java.version>
   </properties>
   <dependencies>
     <dependency>
@@ -28,6 +28,13 @@
       <scope>runtime</scope>
       <optional>true</optional>
     </dependency>
+<!--    <dependency>-->
+<!--      <groupId>jdk.compiler</groupId>-->
+<!--      <artifactId>jdk.compiler</artifactId>-->
+<!--      <version>17</version>-->
+<!--      <scope>system</scope>-->
+<!--      <systemPath>C:\Program Files\Java\jdk-17\lib\jdk.compiler.jar</systemPath>-->
+<!--    </dependency>-->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
@@ -37,6 +44,22 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bom</artifactId>
+      <version>1.0.4</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-brave</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
   </dependencies>
 

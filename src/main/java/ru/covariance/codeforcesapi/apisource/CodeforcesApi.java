@@ -21,7 +21,10 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.client.RestClientException;
 import ru.covariance.codeforcesapi.entities.BlogEntry;
+import ru.covariance.codeforcesapi.entities.CodeForcesApiError;
 import ru.covariance.codeforcesapi.entities.Comment;
 import ru.covariance.codeforcesapi.entities.Contest;
 import ru.covariance.codeforcesapi.entities.ContestStandings;
@@ -31,7 +34,7 @@ import ru.covariance.codeforcesapi.entities.RatingChange;
 import ru.covariance.codeforcesapi.entities.RecentAction;
 import ru.covariance.codeforcesapi.entities.Submission;
 import ru.covariance.codeforcesapi.entities.User;
-
+@Slf4j
 public class CodeforcesApi {
 
   private final String key;
@@ -43,6 +46,9 @@ public class CodeforcesApi {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Random RANDOM = new Random();
 
+  private static final ObjectReader ERROR_MESSAGE =
+      OBJECT_MAPPER.readerFor(new TypeReference<CodeForcesApiError>(){
+      });
   private static final ObjectReader BLOG_ENTRY_LIST_READER =
       OBJECT_MAPPER.readerFor(new TypeReference<List<BlogEntry>>() {
       });
@@ -111,14 +117,20 @@ public class CodeforcesApi {
   }
 
   private JsonNode request(final String request)
-      throws MalformedURLException, CodeforcesApiException {
+      throws IOException, CodeforcesApiException {
     URL requestUrl = new URL(request);
 
-    InputStream responseStream;
+    InputStream responseStream = null;
     try {
       HttpURLConnection connection = (HttpURLConnection) requestUrl.openConnection();
+      int responseCode = connection.getResponseCode();
+      if(responseCode >= 400 && responseCode < 500) {
+        InputStream errorStream = connection.getErrorStream();
+        return OBJECT_MAPPER.readTree(errorStream);
+      }
       responseStream = connection.getInputStream();
-    } catch (IOException e) {
+    } catch (RestClientException | IOException e) {
+        log.info("Error returned from codeforces API :: {} ", e.getMessage());
       throw new CodeforcesApiException(
           "IOException occurred while performing " + request + " query: " + e.getMessage()
       );
@@ -126,9 +138,11 @@ public class CodeforcesApi {
 
     try {
       synchronized (OBJECT_MAPPER) {
+        log.info("Before returning the response as stream :: " + responseStream);
         return OBJECT_MAPPER.readTree(responseStream);
       }
     } catch (IOException e) {
+      log.info("Error returned from codeforces API :: {} ", OBJECT_MAPPER.readTree(responseStream));
       throw new CodeforcesApiException(
           "IOException occurred while performing " + request + " query: " + e.getMessage()
       );
@@ -165,13 +179,16 @@ public class CodeforcesApi {
   }
 
   private String combineParameters(final Map<String, String> parameters) {
-    return parameters.entrySet()
+    String combinedParameters = parameters.entrySet()
         .stream()
         .map(i -> i.getKey() + '=' + i.getValue())
         .collect(Collectors.joining("&"));
+    log.info("Parameters before :: "+ parameters + "New Combined Parameters are :: " + combinedParameters);
+    return combinedParameters;
   }
 
   private String calculateSha512(final String input) {
+    log.info("Entering to generate hash :: " + input);
     try {
       return new BigInteger(
           1,
@@ -226,12 +243,13 @@ public class CodeforcesApi {
     if (isLocalized()) {
       addLocalizationParameters(parameters);
     }
-
-    return CODEFORCES_API + method + "?" + combineParameters(parameters);
+    String request = CODEFORCES_API + method + "?" + combineParameters(parameters);
+    log.info("Formed Request is as follows :: " + request);
+    return request;
   }
 
   private JsonNode wrappedRequest(final String method, Map<String, String> parameters)
-      throws CodeforcesApiException {
+      throws CodeforcesApiException, IOException {
     JsonNode result;
     try {
       result = request(formRequest(method, parameters));
@@ -241,7 +259,8 @@ public class CodeforcesApi {
 
     Optional<JsonNode> unpackedResult = unpackResponse(result);
     if (!unpackedResult.isPresent()) {
-      throw new CodeforcesApiException("Request failed: " + result.get("comment").asText());
+      return result;
+//      throw new CodeforcesApiException("Request failed: " + result.get("comment").asText());
     }
     return unpackedResult.get();
   }
@@ -272,7 +291,8 @@ public class CodeforcesApi {
    * @throws CodeforcesApiException if either API call returns malformed response or specified
    *                                parameters are invalid.
    */
-  public List<Comment> blogEntryComments(final int blogEntryId) throws CodeforcesApiException {
+  public List<Comment> blogEntryComments(final int blogEntryId)
+      throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("blogEntryId", Integer.toString(blogEntryId));
 
@@ -295,7 +315,7 @@ public class CodeforcesApi {
    * @throws CodeforcesApiException if either API call returns malformed response or specified
    *                                parameters are invalid.
    */
-  public BlogEntry blogEntryView(final int blogEntryId) throws CodeforcesApiException {
+  public BlogEntry blogEntryView(final int blogEntryId) throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("blogEntryId", Integer.toString(blogEntryId));
 
@@ -319,7 +339,7 @@ public class CodeforcesApi {
    * @throws CodeforcesApiException if either API call returns malformed response or specified
    *                                parameters are invalid.
    */
-  public List<Hack> contestHacks(final int contestId) throws CodeforcesApiException {
+  public List<Hack> contestHacks(final int contestId) throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("contestId", Integer.toString(contestId));
 
@@ -343,7 +363,7 @@ public class CodeforcesApi {
    *     user will be returned too, including mashups and private gyms.
    * @throws CodeforcesApiException if API call returns malformed response.
    */
-  public List<Contest> contestList(final Boolean gym) throws CodeforcesApiException {
+  public List<Contest> contestList(final Boolean gym) throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("contestId", gym ? "true" : "false");
 
@@ -367,7 +387,7 @@ public class CodeforcesApi {
    *                                parameters are invalid.
    */
   public List<RatingChange> contestRatingChanges(final int contestId)
-      throws CodeforcesApiException {
+      throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("contestId", Integer.toString(contestId));
 
@@ -406,7 +426,7 @@ public class CodeforcesApi {
    */
   public ContestStandings contestStanding(final int contestId, final Integer from,
       final Integer count, final List<String> handles, final Integer room,
-      final Boolean showUnofficial) throws CodeforcesApiException {
+      final Boolean showUnofficial) throws CodeforcesApiException, IOException {
     if (handles != null && handles.size() > STANDINGS_HANDLES_LIMIT) {
       throw new CodeforcesApiException(
           "No more than " + STANDINGS_HANDLES_LIMIT + " handles accepted");
@@ -455,7 +475,7 @@ public class CodeforcesApi {
    *                                parameters are invalid.
    */
   public List<Submission> contestStatus(final int contestId, final String handle,
-      final Integer from, final Integer count) throws CodeforcesApiException {
+      final Integer from, final Integer count) throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("contestId", Integer.toString(contestId));
     if (handle != null) {
@@ -489,7 +509,7 @@ public class CodeforcesApi {
    *                                parameters are invalid.
    */
   public Problemset problemsetProblems(final List<String> tags, final String problemsetName)
-      throws CodeforcesApiException {
+      throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     if (tags != null) {
       parameters.put("tags", String.join(";", tags));
@@ -521,7 +541,7 @@ public class CodeforcesApi {
    *                                parameters are invalid.
    */
   public List<Submission> problemsetRecentStatus(final int count, final String problemsetName)
-      throws CodeforcesApiException {
+      throws CodeforcesApiException , IOException{
     if (count > PROBLEMSET_RECENT_SUBMISSIONS_LIMIT) {
       throw new CodeforcesApiException(
           "No more than " + PROBLEMSET_RECENT_SUBMISSIONS_LIMIT + " submissions can be returned");
@@ -552,7 +572,7 @@ public class CodeforcesApi {
    * @throws CodeforcesApiException if either API call returns malformed response or specified
    *                                parameters are invalid.
    */
-  public List<RecentAction> recentActions(final int maxCount) throws CodeforcesApiException {
+  public List<RecentAction> recentActions(final int maxCount) throws CodeforcesApiException, IOException {
     if (maxCount > RECENT_ACTIONS_LIMIT) {
       throw new CodeforcesApiException(
           "No more than " + RECENT_ACTIONS_LIMIT + " recent actions can be returned");
@@ -580,7 +600,7 @@ public class CodeforcesApi {
    * @throws CodeforcesApiException if either API call returns malformed response or specified
    *                                parameters are invalid.
    */
-  public List<BlogEntry> userBlogEntries(final String handle) throws CodeforcesApiException {
+  public List<BlogEntry> userBlogEntries(final String handle) throws CodeforcesApiException, IOException {
     if (handle == null) {
       throw new CodeforcesApiException("Handle cannot be null");
     }
@@ -606,7 +626,7 @@ public class CodeforcesApi {
    * @return returns a list of strings — user friends' handles.
    * @throws CodeforcesApiException if API call returns malformed response.
    */
-  public List<String> userFriends(final boolean onlyOnline) throws CodeforcesApiException {
+  public List<String> userFriends(final boolean onlyOnline) throws CodeforcesApiException, IOException {
     if (!isAuthorized()) {
       throw new CodeforcesApiException("Connector must be authorized in order to use this method");
     }
@@ -632,7 +652,7 @@ public class CodeforcesApi {
    * @throws CodeforcesApiException if either API call returns malformed response or specified
    *                                parameters are invalid.
    */
-  public List<User> userInfo(final List<String> handles) throws CodeforcesApiException {
+  public List<User> userInfo(final List<String> handles) throws CodeforcesApiException, IOException {
     if (handles == null) {
       throw new CodeforcesApiException("Handle list must not be null");
     }
@@ -642,9 +662,9 @@ public class CodeforcesApi {
     }
     Map<String, String> parameters = new HashMap<>();
     parameters.put("handles", String.join(";", handles));
-
+    log.info("Parameters :: " + parameters);
     JsonNode result = wrappedRequest("user.info", parameters);
-
+    log.info("Result :: " + result.toString());
     try {
       synchronized (USER_LIST_READER) {
         return USER_LIST_READER.readValue(result);
@@ -663,7 +683,7 @@ public class CodeforcesApi {
    * @return returns a list of users, sorted in decreasing order of rating.
    * @throws CodeforcesApiException if API call returns malformed response.
    */
-  public List<User> userRatedList(final boolean activeOnly) throws CodeforcesApiException {
+  public List<User> userRatedList(final boolean activeOnly) throws CodeforcesApiException, IOException {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("activeOnly", activeOnly ? "true" : "false");
 
@@ -686,7 +706,7 @@ public class CodeforcesApi {
    * @throws CodeforcesApiException if either API call returns malformed response or specified
    *                                parameters are invalid.
    */
-  public List<RatingChange> userRating(final String handle) throws CodeforcesApiException {
+  public List<RatingChange> userRating(final String handle) throws CodeforcesApiException, IOException {
     if (handle == null) {
       throw new CodeforcesApiException("Handle must not be null");
     }
@@ -715,7 +735,7 @@ public class CodeforcesApi {
    *                                parameters are invalid.
    */
   public List<Submission> userStatus(final String handle, final Integer from, final Integer count)
-      throws CodeforcesApiException {
+      throws CodeforcesApiException, IOException {
     if (handle == null) {
       throw new CodeforcesApiException("Handle must not be null");
     }

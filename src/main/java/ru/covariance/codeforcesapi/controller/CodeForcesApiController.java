@@ -1,5 +1,6 @@
 package ru.covariance.codeforcesapi.controller;
 
+import java.io.IOException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.covariance.codeforcesapi.apisource.CodeforcesApiException;
 import ru.covariance.codeforcesapi.apireader.ApiReader;
 import ru.covariance.codeforcesapi.entities.Hack;
+import ru.covariance.codeforcesapi.entities.User;
 
 @RestController
 @RequestMapping("/")
@@ -20,8 +22,13 @@ public class CodeForcesApiController {
 
   @GetMapping("getHacks")
   public ResponseEntity<List<Hack>> getHacks(@RequestParam int contestId)
-      throws CodeforcesApiException {
-    return new ResponseEntity<>(ApiReader.callApi().contestHacks(contestId), HttpStatus.ACCEPTED);
+      throws CodeforcesApiException, IOException {
+    return new ResponseEntity<>(ApiReader.callApi().contestHacks(contestId), HttpStatus.OK);
+  }
+  @GetMapping("getHandles")
+  public ResponseEntity<List<User>> getUserInfo(@RequestBody List<String> handles)
+      throws CodeforcesApiException, IOException {
+    return new ResponseEntity<>(ApiReader.callApi().userInfo(handles), HttpStatus.OK);
   }
 
 //  @GetMapping("getUserInfo")

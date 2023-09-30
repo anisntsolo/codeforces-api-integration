@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.covariance.codeforcesapi.apisource.CodeforcesApiException;
 import ru.covariance.codeforcesapi.apireader.ApiReader;
 import ru.covariance.codeforcesapi.entities.Hack;
+import ru.covariance.codeforcesapi.entities.RatingChange;
 import ru.covariance.codeforcesapi.entities.User;
 
 @RestController
@@ -29,6 +30,11 @@ public class CodeForcesApiController {
   public ResponseEntity<List<User>> getUserInfo(@RequestBody List<String> handles)
       throws CodeforcesApiException, IOException {
     return new ResponseEntity<>(ApiReader.callApi().userInfo(handles), HttpStatus.OK);
+  }
+  @GetMapping("getRating")
+  public ResponseEntity<List<RatingChange>> getUserInfo(@RequestParam final String handle)
+      throws CodeforcesApiException, IOException {
+    return new ResponseEntity<>(ApiReader.callApi().userRating(handle), HttpStatus.OK);
   }
 
 //  @GetMapping("getUserInfo")
